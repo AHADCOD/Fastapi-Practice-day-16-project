@@ -58,6 +58,12 @@ class BookHasActiveLoansError(LibraryError):
     """Exception raised when a book has active loans."""
     def __init__(self, message: str, status_code: int = status.HTTP_409_CONFLICT):
         super().__init__(status_code, message)
+
+class PublisherNotFoundError(LibraryError):
+    """Exception raised when a publisjer is not found."""
+    def __init__(self, message: str, status_code: int = status.HTTP_404_NOT_FOUND):
+        super().__init__(status_code, message)
+
     
 def register_exception_handlers(app):
     @app.exception_handler(LibraryError)

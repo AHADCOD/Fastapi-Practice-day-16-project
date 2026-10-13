@@ -2,6 +2,7 @@ from pydantic import BaseModel, Field, field_validator, model_validator, ConfigD
 from core.utilities import validate_isbn10_strict, validate_isbn13_strict
 from core.exceptions import ISBNValidationError, LibraryError
 from enum import Enum
+from .publishers import PublisherOut
 
 class Genre(str, Enum):
     FICTION = "fiction"
@@ -12,9 +13,6 @@ class Genre(str, Enum):
     reference = "reference"
 
 
-class Publisher(BaseModel):
-    name: str = Field(..., description="The name of the publisher", min_length=1)
-    country: str = Field(..., description="The country of the publisher", min_length=1)
 
 class BookBase(BaseModel):
     title: str = Field(..., description="The title of the book", min_length=1)
@@ -23,7 +21,7 @@ class BookBase(BaseModel):
     isbn: str = Field(..., description="The ISBN of the book", min_length=1, max_length=13)
     total_copies: int = Field(..., description="The total number of copies of the book", ge=1)
     available_copies: int = Field(..., description="The number of available copies of the book", ge=0)
-    publisher: Publisher = Field(..., description="The publisher of the book")
+    publisher_id: int = Field(..., description="The id of publisher of the book", gt=0)
     
     @field_validator("isbn")
     @classmethod
@@ -52,6 +50,7 @@ class BookIn(BookBase):
 class BookOut(BookBase):
     model_config = ConfigDict(from_attributes=True)
     id: int = Field(..., description="The unique identifier of the book", ge=1)
+    publisher: PublisherOut = Field(..., description="The publisher of the book")
 
 class BookUpdate(BaseModel):
     title: str | None = Field(None, description="The title of the book", min_length=1)
