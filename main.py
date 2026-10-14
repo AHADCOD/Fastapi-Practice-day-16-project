@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Depends
+from fastapi import FastAPI
 from core.exceptions import register_exception_handlers
 from routers.book import BookRouter
 from routers.member import MemberRouter

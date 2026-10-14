@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, status, Query, Path
 from schemas.members import MemberIn, MemberOut, MembershipType, MemberUpdate
 from services.member_services import create_member_service, get_members_service, get_member_service, update_member_service
-from core.dependencies import require_admin, PaginationParams, get_pagination_params
+from core.dependencies import PaginationParams, get_pagination_params
 from typing import Annotated
 from core.database import get_db
 from sqlalchemy.orm import Session

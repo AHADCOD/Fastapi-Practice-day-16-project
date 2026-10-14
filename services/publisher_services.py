@@ -1,6 +1,5 @@
 from core.exceptions import PublisherNotFoundError
 from sqlalchemy.orm import Session
-from sqlalchemy import select
 from models.publisher import Publisher
 
 def create_publisher_service(publisher: dict, db: Session):

@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field, field_validator, model_validator, ConfigDict, EmailStr
+from pydantic import BaseModel, Field, ConfigDict, EmailStr
 from enum import Enum
 
 class MembershipType(str, Enum):

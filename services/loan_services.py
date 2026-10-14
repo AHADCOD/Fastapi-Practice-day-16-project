@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta, UTC, UTC
+from datetime import datetime, timedelta, UTC
 from schemas.loans import ReturnStatus
 from schemas.books import BookOut
 from schemas.members import MemberOut
@@ -18,12 +18,6 @@ def check_loan(loan_id: int, db: Session):
         raise LoanNotFoundError(message="Loan not found.")
     return loan
 
-def get_member_and_book_details(loan: dict):
-    member_id = loan["member_id"]
-    book_id = loan["book_id"]
-    member = check_member(member_id)
-    book = check_book(book_id)
-    return MemberOut(id=member_id, **member), BookOut(id=book_id, **book)
 
 
 def create_loan_service(member_id: int, book_id: int, db: Session):
