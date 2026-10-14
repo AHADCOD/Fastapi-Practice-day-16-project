@@ -1,47 +1,49 @@
 from core.exceptions import DuplicateEmailError, MemberNotFoundError
 from schemas.members import MembershipType
 from core.dependencies import PaginationParams, pagination
+from sqlalchemy.orm import Session
+from sqlalchemy import select
+from models.member import Member
 
-members = {}
-
-def check_member(member_id: int):
-    if member_id not in list(members.keys()):
+def check_member(member_id: int, db: Session):
+    member = db.execute(select(Member).where(Member.id == member_id)).scalars().first()
+    if not member:
         raise MemberNotFoundError(message=f"Member with ID {member_id} does not exist.")
-    return members[member_id]
+    return member
 
-    
-def create_member_service(member: dict):
-    id = max(list(members.keys()))+1 if members else 1
+def create_member_service(member: dict, db: Session):
+    existing_member = db.execute(select(Member).where(Member.email == member["email"].lower())).scalars().first()
+    if existing_member:
+        raise DuplicateEmailError(message="Duplicate Email. Member of this email already exits.")
 
-    for i, value in members.items():
-        if member["email"].lower() == value["email"].lower():
-            raise DuplicateEmailError(message="Duplicate Email. Member of this email already exits.")
+    new_member = Member(name=member["name"], email=member["email"].lower(), membership_type=member["membership_type"])
+    db.add(new_member)
+    db.commit()
+    db.refresh(new_member)
+    return new_member
 
-    members[id] = member
-    return {"id": id, **member}
-
-def get_members_service(membership_type: MembershipType | None, pagination_params: PaginationParams):
+def get_members_service(membership_type: MembershipType | None, pagination_params: PaginationParams, db: Session):
     result = []
-    for i, value in members.items():
-        if membership_type and value["membership_type"] == membership_type:
-            result.append({"id": i, **value})
-        if not membership_type:
-            result.append({"id": i, **value})
+    stmt = select(Member)
+    if membership_type:
+        stmt = stmt.where(Member.membership_type == membership_type.value)
+    result = db.execute(stmt).scalars().all()
     return pagination(pagination_params.skip, pagination_params.limit, result)
 
 
-def get_member_service(member_id: int):
-    member = check_member(member_id)
-    return {"id": member_id, **member}
+def get_member_service(member_id: int, db: Session):
+    member = check_member(member_id, db)
+    return member
 
-def update_member_service(member_id: int, member: dict):
-    existing_member = check_member(member_id)
-
-    for i, value in members.items():
-        if member.get("email") and (member["email"].lower() == value["email"].lower()) and (i != member_id):
-            raise DuplicateEmailError(message="Duplicate Email. Member of this email already exits.")
+def update_member_service(member_id: int, member: dict, db: Session):
+    existing_member = check_member(member_id, db)
+    stmt = select(Member).where(Member.email == member.get("email", existing_member.email).lower(), Member.id != member_id)
+    duplicate_member = db.execute(stmt).scalars().first()
+    if duplicate_member:
+        raise DuplicateEmailError(message="Duplicate Email. Member of this email already exits.")
     for key, value in member.items():
-        existing_member[key] = value
-    members[member_id] = existing_member
-    return {"id": member_id, **existing_member}
-    
+        if value is not None:
+            setattr(existing_member, key, value)
+    db.commit()
+    db.refresh(existing_member)
+    return existing_member
