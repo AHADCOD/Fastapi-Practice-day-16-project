@@ -6,7 +6,7 @@ from .book_services import check_book
 from .member_services import check_member
 from core.exceptions import BookUnavailableError, LoanNotFoundError, DuplicateLoanError, LoanLimitExceededError
 from core.dependencies import PaginationParams, pagination
-from sqlalchemy.orm import Session, selectinload
+from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import select
 from models.loan import Loan
 
@@ -68,7 +68,7 @@ def create_loan_service(member_id: int, book_id: int, db: Session):
 
 def get_loans_service(member_id: int | None, book_id: int | None, loan_status: ReturnStatus | None, pagination_params: PaginationParams, db: Session):
     results = []
-    stmt = select(Loan).options(selectinload(Loan.book), selectinload(Loan.member)).order_by(Loan.loan_date.desc())
+    stmt = select(Loan).options(joinedload(Loan.book), joinedload(Loan.member)).order_by(Loan.loan_date.desc())
     if member_id is not None:
         stmt = stmt.where(Loan.member_id == member_id)
     if book_id is not None:
@@ -82,7 +82,7 @@ def get_loans_service(member_id: int | None, book_id: int | None, loan_status: R
 
 def get_overdue_loans_service(pagination_params: PaginationParams, db: Session):
     results = []
-    stmt = select(Loan).options(selectinload(Loan.book), selectinload(Loan.member)).where(Loan.status == ReturnStatus.ACTIVE, Loan.due_date < datetime.now(UTC))
+    stmt = select(Loan).options(joinedload(Loan.book), joinedload(Loan.member)).where(Loan.status == ReturnStatus.ACTIVE, Loan.due_date < datetime.now(UTC))
     results = db.execute(stmt).scalars().all()
 
     return pagination(pagination_params.skip, pagination_params.limit, results)
