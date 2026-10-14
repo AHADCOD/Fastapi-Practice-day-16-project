@@ -8,9 +8,9 @@ from .member import Member
 
 class Loan(Base):
     __tablename__ = "loans"
-
-    book_id: Mapped[int] = mapped_column(ForeignKey("books.id"), nullable=False, primary_key=True)
-    member_id: Mapped[int] = mapped_column(ForeignKey("members.id"), nullable=False, primary_key=True)
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    book_id: Mapped[int] = mapped_column(ForeignKey("books.id"), nullable=False)
+    member_id: Mapped[int] = mapped_column(ForeignKey("members.id"), nullable=False)
     loan_date: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
     due_date: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=True)
     return_date: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=True)

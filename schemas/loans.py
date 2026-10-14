@@ -6,7 +6,7 @@ from .members import MemberOut
 
 class ReturnStatus(str, Enum):
     RETURNED = "returned"
-    ACTICE = "active"
+    ACTIVE = "active"
 
 class LoanBase(BaseModel):
     book_id: int = Field(..., description="The ID of the book being loaned", ge=1)
@@ -18,7 +18,9 @@ class LoanIn(LoanBase):
 
 class LoanOut(LoanBase):
     model_config = ConfigDict(from_attributes=True)
-    id: int = Field(..., description="The unique identifier of the loan", ge=1)
+    id: int = Field(..., description="The unique identifier for the loan")
+    book_id: int = Field(..., description="The ID of the book being loaned", ge=1)
+    member_id: int = Field(..., description="The ID of the user borrowing the book", ge=1)
     due_date: datetime |None = Field(None, description="The due date for returning the book")
     return_date: datetime |None = Field(None, description="The date the book was returned")
     status: ReturnStatus
@@ -28,7 +30,14 @@ class LoanOut(LoanBase):
     @computed_field
     @property
     def is_overdue(self) -> bool:
-        return (self.status == ReturnStatus.ACTICE and self.due_date is not None and self.due_date < datetime.now(UTC))
+        if self.status != ReturnStatus.ACTIVE or self.due_date is None:
+            return False
+
+        due_date = self.due_date
+        if due_date.tzinfo is None:
+            due_date = due_date.replace(tzinfo=UTC)
+
+        return due_date < datetime.now(UTC)
 
 
 
