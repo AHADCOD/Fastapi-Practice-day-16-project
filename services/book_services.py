@@ -2,67 +2,76 @@ from core.exceptions import DuplicateISBNError, BookNotFoundError, BookHasActive
 from schemas.books import Genre
 from core.utilities import validate_isbn10_strict, validate_isbn13_strict
 from core.dependencies import PaginationParams, pagination
-books = {}
+from sqlalchemy.orm import Session
+from models.book import Book
+from sqlalchemy import select
+from sqlalchemy.orm import selectinload
+from models.loan import Loan
 
-def check_book(book_id: int):
-    if book_id not in list(books.keys()):
+def check_book(book_id: int, db: Session):
+    stmt = select(Book).where(Book.id == book_id)
+    book = db.execute(stmt).scalars().first()
+    if not book:
         raise BookNotFoundError(message="Book not found.")
-    return books[book_id]
+    return book
 
 
 
-def create_book_service(book: dict):
+def create_book_service(book: dict, db: Session):
+    stmt = select(Book).where(Book.isbn == book["isbn"])
+    existing_book = db.execute(stmt).scalars().first()
+    if existing_book:
+        raise DuplicateISBNError(message="A book with this ISBN already exists.")
+    new_book = Book(**book)
+    db.add(new_book)
+    db.commit()
+    db.refresh(new_book)
+    return new_book
 
-    id = max(list(books.keys()))+1 if books else 1
-    for existing_book in books.values():
-        if book["isbn"] == existing_book["isbn"]:
-            raise DuplicateISBNError(message="Book with this ISBN already exists.")
-    books[id] = book
-    return {"id": id, **books[id]}
 
 def get_books_service( genre: Genre | None,
     author: str | None,
-    available_only: bool | None, pagination_params: PaginationParams):
+    available_only: bool | None, pagination_params: PaginationParams, db: Session):
     results = []
-    for id, book in books.items():
-        if genre and book["genre"] != genre:
-            continue
-        if author and book["author"] != author:
-            continue
-        if available_only and book["available_copies"] <= 0:
-            continue
-        if book["isbn"] not in list(result["isbn"] for result in results):
-            results.append({"id": id, **book})
+    stmt = select(Book).options(selectinload(Book.publisher))
+    if genre:
+        stmt = stmt.where(Book.genre == genre)
+    if author:
+        stmt = stmt.where(Book.author == author)
+    if available_only:
+        stmt = stmt.where(Book.available_copies > 0)
+    results = db.execute(stmt).scalars().all()
+
     return pagination(pagination_params.skip, pagination_params.limit, results)
 
-def get_available_book_service(pagination_params: PaginationParams):
+def get_available_book_service(pagination_params: PaginationParams, db: Session):
     results = []
-    for id, book in books.items():
-        if book["available_copies"] > 0:
-            if book["isbn"] not in list(result["isbn"] for result in results):
-                results.append({"id": id, **book})
+    stmt = select(Book).options(selectinload(Book.publisher)).where(Book.available_copies > 0)
+    results = db.execute(stmt).scalars().all()
     return pagination(pagination_params.skip, pagination_params.limit, results)
 
 
-def get_book_service(book_id: int):
-    book = check_book(book_id)
-    return {"id": book_id, **book}
+def get_book_service(book_id: int, db: Session):
+    book = check_book(book_id, db)
+    return book
 
-def update_book_service(book_id: int, book_update: dict):
-    book = check_book(book_id)
-    
+def update_book_service(book_id: int, book_update: dict, db: Session):
+    book = check_book(book_id, db)
+
     for key, value in book_update.items():
         if value is not None:
-            book[key] = value
-    books[book_id] = book
-    return {"id": book_id, **book}
+            setattr(book, key, value)
+    db.commit()
+    db.refresh(book)
+    return book
 
-def delete_book_service(book_id: int):
-    from .loan_services import loans
-    book = check_book(book_id)
-    for loan in loans.values():
-        if loan["book_id"] == book_id and loan["status"] == "active":
-            raise BookHasActiveLoansError(message="Cannot delete book with active loans.")
-    del books[book_id]
+def delete_book_service(book_id: int, db: Session):
+    book = check_book(book_id, db)
+    stmt = select(Loan).where(Loan.book_id == book_id, Loan.status == "active")
+    active_loans = db.execute(stmt).scalars().all()
+    if active_loans:
+        raise BookHasActiveLoansError(message="Cannot delete book with active loans.")
+    db.delete(book)
+    db.commit()
 
 

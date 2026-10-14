@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from .publisher import Publisher
+    from .loan import Loan
 
 class Book(Base):
     __tablename__ = "books"
@@ -18,3 +19,5 @@ class Book(Base):
     available_copies: Mapped[int] = mapped_column(nullable=False)
     publisher_id: Mapped[int] = mapped_column(ForeignKey("publishers.id"), nullable=False)
     publisher: Mapped["Publisher"] = relationship(back_populates="books")
+    loans: Mapped[list["Loan"]] = relationship(back_populates="book", cascade="all, delete-orphan")
+

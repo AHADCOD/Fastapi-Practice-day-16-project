@@ -39,11 +39,6 @@ class BookBase(BaseModel):
             raise LibraryError(status_code=400, message="Available copies cannot exceed total copies")
         return self
 
-    @computed_field
-    @property
-    def is_available(self) -> bool:
-        return self.available_copies > 0
-
 class BookIn(BookBase):
     pass
 
@@ -51,6 +46,10 @@ class BookOut(BookBase):
     model_config = ConfigDict(from_attributes=True)
     id: int = Field(..., description="The unique identifier of the book", ge=1)
     publisher: PublisherOut = Field(..., description="The publisher of the book")
+    @computed_field
+    @property
+    def is_available(self) -> bool:
+        return self.available_copies > 0
 
 class BookUpdate(BaseModel):
     title: str | None = Field(None, description="The title of the book", min_length=1)
@@ -69,3 +68,5 @@ class BookUpdate(BaseModel):
             return validate_isbn13_strict(value)
         else:
             raise ISBNValidationError(status_code=400, message="ISBN must be either 10 or 13 characters long")
+
+    
